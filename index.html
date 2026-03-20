@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Markdown Previewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+    <style>
+        /* CSS resets and variables */
+        :root {
+            --bg: #f7f5f2;
+            --surface: #ffffff;
+            --text-primary: #1a1714;
+            --text-secondary: #6b6560;
+            --border: #e8e3dd;
+            --accent: #d97757;
+            --code-bg: #f0ece6;
+            --inline-code-bg: #fdf4ee;
+            --inline-code-text: #c4500a;
+            --blockquote-bg: #fdf8f4;
+            --font-sans: Söhne, ui-sans-serif, system-ui, -apple-system, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.75;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Header */
+        header {
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            border-bottom: 1px solid var(--border);
+            background-color: var(--bg);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .logo-container svg {
+            color: var(--accent);
+            width: 20px;
+            height: 20px;
+        }
+
+        .header-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .header-link:hover {
+            color: var(--text-primary);
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 32px 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            height: calc(100vh - 52px);
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .textarea-wrapper {
+                min-height: 400px;
+            }
+        }
+
+        /* Input Panel */
+        .input-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            height: 100%;
+            min-height: 0;
+        }
+
+        .input-label {
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+        }
+
+        .textarea-wrapper {
+            position: relative;
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100%;
+            border: 1px solid var(--border);
+            background-color: #fafaf8;
+            border-radius: 10px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            color: var(--text-primary);
+            resize: none;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.15);
+        }
+
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 4px;
+        }
+
+        .stats {
+            color: #9b8f87;
+            font-size: 13px;
+        }
+
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: var(--font-sans);
+        }
+
+        .btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn-primary {
+            background-color: var(--text-primary);
+            color: white;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--accent);
+            color: white;
+        }
+        
+        .btn-secondary:hover svg {
+            stroke: white;
+            fill: white;
+        }
+
+        /* Preview Container */
+        .preview-container {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 40px 48px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+            height: 100%;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        /* Empty State */
+        .empty-state {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        .empty-state svg {
+            color: var(--accent);
+            width: 32px;
+            height: 32px;
+            opacity: 0.8;
+        }
+
+        /* Rendered Content */
+        .markdown-body {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            font-size: 16px;
+            color: var(--text-primary);
+        }
+
+        .markdown-body.visible {
+            opacity: 1;
+        }
+
+        .markdown-body h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 16px;
+            margin-top: 32px;
+            line-height: 1.3;
+        }
+
+        .markdown-body h1:first-child {
+            margin-top: 0;
+        }
+
+        .markdown-body h2 {
+            font-size: 22px;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 8px;
+            margin-top: 32px;
+            margin-bottom: 16px;
+        }
+
+        .markdown-body h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 12px;
+        }
+
+        .markdown-body p {
+            margin: 12px 0;
+        }
+
+        .markdown-body strong {
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .markdown-body em {
+            font-style: italic;
+            color: #3d3530;
+        }
+
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 24px;
+            margin: 12px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .markdown-body ul {
+            list-style: none;
+        }
+
+        .markdown-body ul li {
+            position: relative;
+        }
+
+        .markdown-body ul li::before {
+            content: '';
+            position: absolute;
+            left: -16px;
+            top: 13px;
+            width: 3px;
+            height: 3px;
+            border-radius: 1px;
+            background-color: var(--accent);
+        }
+
+        .markdown-body ol {
+            list-style-type: none;
+            counter-reset: item;
+        }
+
+        .markdown-body ol li {
+            position: relative;
+        }
+
+        .markdown-body ol li::before {
+            content: counter(item) ".";
+            counter-increment: item;
+            position: absolute;
+            left: -24px;
+            width: 16px;
+            text-align: right;
+            color: var(--accent);
+            font-weight: 500;
+        }
+
+        .markdown-body pre {
+            position: relative;
+            background: #f0ece6;
+            border: 1px solid #e0d9d1;
+            border-radius: 8px;
+            padding: 36px 16px 16px 16px; /* top padding for language label */
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+
+        .markdown-body pre code {
+            font-size: 13.5px;
+            line-height: 1.6;
+            font-family: 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
+            background: none;
+            padding: 0;
+            color: inherit;
+            border-radius: 0;
+        }
+
+        .code-lang-label {
+            position: absolute;
+            top: 10px;
+            left: 14px;
+            font-size: 11px;
+            color: #9b8f87;
+            font-family: ui-monospace, monospace;
+            text-transform: lowercase;
+            letter-spacing: 0.03em;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: transparent;
+            border: none;
+            color: #6b6560;
+            font-size: 12px;
+            font-family: var(--font-sans);
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .copy-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .copy-btn svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .copy-btn.copied {
+            color: #059669;
+        }
+
+        /* Claude-matching syntax colors */
+        .hljs { background: #f0ece6 !important; color: #1a1714 !important; }
+        .hljs-comment, .hljs-meta { color: #8e8178 !important; font-style: italic; }
+        .hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: #c4500a !important; font-weight: 600; }
+        .hljs-string, .hljs-attr { color: #2d7a3a !important; }
+        .hljs-number, .hljs-literal { color: #7c4dbd !important; }
+        .hljs-function, .hljs-title { color: #1565c0 !important; }
+        .hljs-variable, .hljs-params { color: #1a1714 !important; }
+        .hljs-type, .hljs-class { color: #b5460f !important; }
+        .hljs-operator, .hljs-punctuation { color: #6b6560 !important; }
+
+        /* ── Bash / Shell / Sh / Zsh — Green tones ── */
+        .lang-bash .hljs-keyword, .lang-shell .hljs-keyword,
+        .lang-bash .hljs-built_in, .lang-shell .hljs-built_in { color: #2e7d32 !important; }
+        .lang-bash .hljs-string, .lang-shell .hljs-string     { color: #388e3c !important; }
+        .lang-bash .hljs-variable, .lang-shell .hljs-variable { color: #1b5e20 !important; }
+        .lang-bash .hljs-comment, .lang-shell .hljs-comment   { color: #81c784 !important; }
+        .lang-bash .hljs-number, .lang-shell .hljs-number     { color: #43a047 !important; }
+
+        /* ── Python — Blue tones ── */
+        .lang-python .hljs-keyword                { color: #1565c0 !important; }
+        .lang-python .hljs-built_in               { color: #1976d2 !important; }
+        .lang-python .hljs-string                 { color: #2e7d9f !important; }
+        .lang-python .hljs-comment                { color: #90caf9 !important; }
+        .lang-python .hljs-number                 { color: #0d47a1 !important; }
+        .lang-python .hljs-title                  { color: #1a237e !important; }
+
+        /* ── Terraform / HCL — Purple tones ── */
+        .lang-terraform .hljs-keyword, .lang-hcl .hljs-keyword { color: #7b1fa2 !important; font-weight: 600; }
+        .lang-terraform .hljs-string,  .lang-hcl .hljs-string  { color: #9c27b0 !important; }
+        .lang-terraform .hljs-built_in,.lang-hcl .hljs-built_in{ color: #6a1b9a !important; font-weight: 600; }
+        .lang-terraform .hljs-number,  .lang-hcl .hljs-number  { color: #ab47bc !important; }
+        .lang-terraform .hljs-comment, .lang-hcl .hljs-comment { color: #ce93d8 !important; font-style: italic; }
+        .lang-terraform .hljs-attr,    .lang-hcl .hljs-attr    { color: #4a148c !important; font-weight: 600; }
+        .lang-terraform .hljs-variable,.lang-hcl .hljs-variable{ color: #e040fb !important; }
+        .lang-terraform .hljs-title,   .lang-hcl .hljs-title   { color: #38006b !important; font-weight: 700; }
+
+        /* ── YAML (Kubernetes, GitHub Actions, Azure Pipelines, Ansible) — Amber tones ── */
+        .lang-yaml .hljs-attr     { color: #e65100 !important; }
+        .lang-yaml .hljs-string   { color: #bf360c !important; }
+        .lang-yaml .hljs-number   { color: #e64a19 !important; }
+        .lang-yaml .hljs-comment  { color: #ffb74d !important; }
+        .lang-yaml .hljs-keyword  { color: #f4511e !important; }
+        .lang-yaml .hljs-literal  { color: #d84315 !important; }
+
+        /* ── JSON — Teal tones ── */
+        .lang-json .hljs-attr     { color: #00695c !important; }
+        .lang-json .hljs-string   { color: #00796b !important; }
+        .lang-json .hljs-number   { color: #004d40 !important; }
+        .lang-json .hljs-literal  { color: #00897b !important; }
+
+        /* ── Dockerfile — Cyan tones ── */
+        .lang-dockerfile .hljs-keyword,
+        .lang-docker .hljs-keyword      { color: #00838f !important; font-weight: 600; }
+        .lang-dockerfile .hljs-string,
+        .lang-docker .hljs-string       { color: #006064 !important; }
+        .lang-dockerfile .hljs-comment,
+        .lang-docker .hljs-comment      { color: #26c6da !important; font-style: italic; }
+        .lang-dockerfile .hljs-number,
+        .lang-docker .hljs-number       { color: #0097a7 !important; }
+        .lang-dockerfile .hljs-attr,
+        .lang-docker .hljs-attr         { color: #004d40 !important; }
+
+        /* ── PowerShell — Indigo tones ── */
+        .lang-powershell .hljs-keyword  { color: #283593 !important; }
+        .lang-powershell .hljs-built_in { color: #3949ab !important; }
+        .lang-powershell .hljs-string   { color: #1a237e !important; }
+        .lang-powershell .hljs-comment  { color: #9fa8da !important; }
+        .lang-powershell .hljs-variable { color: #5c6bc0 !important; }
+
+        /* ── AWS CLI — Orange tones ── */
+        .lang-aws .hljs-keyword   { color: #e65100 !important; }
+        .lang-aws .hljs-string    { color: #bf360c !important; }
+        .lang-aws .hljs-number    { color: #f4511e !important; }
+        .lang-aws .hljs-comment   { color: #ffb74d !important; }
+
+        /* ── SQL — Rose tones ── */
+        .lang-sql .hljs-keyword   { color: #c62828 !important; }
+        .lang-sql .hljs-string    { color: #ad1457 !important; }
+        .lang-sql .hljs-number    { color: #b71c1c !important; }
+        .lang-sql .hljs-comment   { color: #ef9a9a !important; }
+        .lang-sql .hljs-built_in  { color: #880e4f !important; }
+
+        /* ── JavaScript / TypeScript — Yellow-brown tones ── */
+        .lang-javascript .hljs-keyword,  .lang-typescript .hljs-keyword  { color: #e65100 !important; }
+        .lang-javascript .hljs-string,   .lang-typescript .hljs-string   { color: #558b2f !important; }
+        .lang-javascript .hljs-number,   .lang-typescript .hljs-number   { color: #827717 !important; }
+        .lang-javascript .hljs-built_in, .lang-typescript .hljs-built_in { color: #f9a825 !important; }
+        .lang-javascript .hljs-comment,  .lang-typescript .hljs-comment  { color: #a5d6a7 !important; }
+        .lang-javascript .hljs-title,    .lang-typescript .hljs-title    { color: #6d4c41 !important; }
+
+        /* ── Kubernetes YAML — Deep sky blue tones ── */
+        .lang-kubernetes .hljs-attr     { color: #0277bd !important; font-weight: 600; }
+        .lang-kubernetes .hljs-string   { color: #01579b !important; }
+        .lang-kubernetes .hljs-number   { color: #0288d1 !important; }
+        .lang-kubernetes .hljs-comment  { color: #81d4fa !important; font-style: italic; }
+        .lang-kubernetes .hljs-keyword  { color: #1565c0 !important; font-weight: 600; }
+        .lang-kubernetes .hljs-literal  { color: #0d47a1 !important; }
+
+        /* ── Helm (also yaml-based) — Navy tones ── */
+        .lang-helm .hljs-attr           { color: #1a237e !important; font-weight: 600; }
+        .lang-helm .hljs-string         { color: #283593 !important; }
+        .lang-helm .hljs-keyword        { color: #3949ab !important; font-weight: 600; }
+        .lang-helm .hljs-comment        { color: #9fa8da !important; font-style: italic; }
+        .lang-helm .hljs-number         { color: #5c6bc0 !important; }
+        .lang-helm .hljs-template-tag,
+        .lang-helm .hljs-template-variable { color: #7986cb !important; }
+
+        /* ── Ansible YAML — Tomato red tones ── */
+        .lang-ansible .hljs-attr        { color: #c62828 !important; font-weight: 600; }
+        .lang-ansible .hljs-string      { color: #b71c1c !important; }
+        .lang-ansible .hljs-keyword     { color: #d32f2f !important; font-weight: 600; }
+        .lang-ansible .hljs-comment     { color: #ef9a9a !important; font-style: italic; }
+        .lang-ansible .hljs-number      { color: #e53935 !important; }
+        .lang-ansible .hljs-literal     { color: #ff5252 !important; }
+        .lang-ansible .hljs-variable    { color: #7f0000 !important; }
+
+        /* ── GitHub Actions YAML — Slate/cool gray tones ── */
+        .lang-actions .hljs-attr        { color: #37474f !important; font-weight: 600; }
+        .lang-actions .hljs-string      { color: #455a64 !important; }
+        .lang-actions .hljs-keyword     { color: #263238 !important; font-weight: 600; }
+        .lang-actions .hljs-comment     { color: #90a4ae !important; font-style: italic; }
+        .lang-actions .hljs-number      { color: #546e7a !important; }
+        .lang-actions .hljs-variable    { color: #78909c !important; }
+        .lang-actions .hljs-template-variable { color: #607d8b !important; }
+
+        /* ── Azure CLI / Azure Bicep — Azure blue tones ── */
+        .lang-azure .hljs-keyword       { color: #0050b3 !important; font-weight: 600; }
+        .lang-azure .hljs-string        { color: #003a8c !important; }
+        .lang-azure .hljs-built_in      { color: #1890ff !important; }
+        .lang-azure .hljs-comment       { color: #69c0ff !important; font-style: italic; }
+        .lang-azure .hljs-number        { color: #0078d4 !important; }
+        .lang-azure .hljs-attr          { color: #002766 !important; font-weight: 600; }
+        .lang-azure .hljs-variable      { color: #40a9ff !important; }
+
+        /* ── Bicep (Azure IaC) — Azure lighter tones ── */
+        .lang-bicep .hljs-keyword       { color: #0078d4 !important; font-weight: 600; }
+        .lang-bicep .hljs-string        { color: #005a9e !important; }
+        .lang-bicep .hljs-built_in      { color: #2b88d8 !important; }
+        .lang-bicep .hljs-comment       { color: #a9d3f5 !important; font-style: italic; }
+        .lang-bicep .hljs-number        { color: #004578 !important; }
+        .lang-bicep .hljs-type          { color: #0063b1 !important; font-weight: 600; }
+        .lang-bicep .hljs-variable      { color: #2899f5 !important; }
+
+        /* ── AWS CloudFormation / SAM (YAML/JSON) — AWS orange tones ── */
+        .lang-cloudformation .hljs-attr,
+        .lang-sam .hljs-attr            { color: #bf4f00 !important; font-weight: 600; }
+        .lang-cloudformation .hljs-string,
+        .lang-sam .hljs-string          { color: #e65100 !important; }
+        .lang-cloudformation .hljs-keyword,
+        .lang-sam .hljs-keyword         { color: #c43e00 !important; font-weight: 600; }
+        .lang-cloudformation .hljs-comment,
+        .lang-sam .hljs-comment         { color: #ffb74d !important; font-style: italic; }
+        .lang-cloudformation .hljs-number,
+        .lang-sam .hljs-number          { color: #ff6d00 !important; }
+
+        /* ── Pulumi (TypeScript/Python based) — Salmon tones ── */
+        .lang-pulumi .hljs-keyword      { color: #b5451b !important; font-weight: 600; }
+        .lang-pulumi .hljs-string       { color: #9c3518 !important; }
+        .lang-pulumi .hljs-built_in     { color: #d4613a !important; }
+        .lang-pulumi .hljs-comment      { color: #f4a27a !important; font-style: italic; }
+        .lang-pulumi .hljs-number       { color: #7c2a0e !important; }
+
+        /* ── Nginx config — Olive/moss tones ── */
+        .lang-nginx .hljs-keyword       { color: #558b2f !important; font-weight: 600; }
+        .lang-nginx .hljs-string        { color: #33691e !important; }
+        .lang-nginx .hljs-number        { color: #689f38 !important; }
+        .lang-nginx .hljs-comment       { color: #aed581 !important; font-style: italic; }
+        .lang-nginx .hljs-attr          { color: #1b5e20 !important; font-weight: 600; }
+        .lang-nginx .hljs-variable      { color: #8bc34a !important; }
+
+        /* ── Apache config — Brown tones ── */
+        .lang-apache .hljs-keyword      { color: #4e342e !important; font-weight: 600; }
+        .lang-apache .hljs-string       { color: #3e2723 !important; }
+        .lang-apache .hljs-number       { color: #6d4c41 !important; }
+        .lang-apache .hljs-comment      { color: #bcaaa4 !important; font-style: italic; }
+
+        /* ── Makefile — Dark teal tones ── */
+        .lang-makefile .hljs-keyword    { color: #00695c !important; font-weight: 600; }
+        .lang-makefile .hljs-string     { color: #004d40 !important; }
+        .lang-makefile .hljs-comment    { color: #80cbc4 !important; font-style: italic; }
+        .lang-makefile .hljs-variable   { color: #00897b !important; }
+        .lang-makefile .hljs-title      { color: #1de9b6 !important; font-weight: 700; }
+
+        /* ── Groovy (Jenkins pipeline) — Dark gold tones ── */
+        .lang-groovy .hljs-keyword      { color: #f57f17 !important; font-weight: 600; }
+        .lang-groovy .hljs-string       { color: #e65100 !important; }
+        .lang-groovy .hljs-number       { color: #ff8f00 !important; }
+        .lang-groovy .hljs-comment      { color: #ffe082 !important; font-style: italic; }
+        .lang-groovy .hljs-built_in     { color: #ff6f00 !important; }
+        .lang-groovy .hljs-title        { color: #e65100 !important; font-weight: 700; }
+
+        /* ── Jenkins (Declarative pipeline same as groovy) ── */
+        .lang-jenkins .hljs-keyword     { color: #d84315 !important; font-weight: 600; }
+        .lang-jenkins .hljs-string      { color: #bf360c !important; }
+        .lang-jenkins .hljs-comment     { color: #ff8a65 !important; font-style: italic; }
+        .lang-jenkins .hljs-number      { color: #e64a19 !important; }
+
+        /* ── Prometheus / PromQL — Deep orange tones ── */
+        .lang-promql .hljs-keyword      { color: #e64a19 !important; font-weight: 600; }
+        .lang-promql .hljs-string       { color: #bf360c !important; }
+        .lang-promql .hljs-number       { color: #ff7043 !important; }
+        .lang-promql .hljs-built_in     { color: #d84315 !important; }
+        .lang-promql .hljs-comment      { color: #ffab91 !important; font-style: italic; }
+
+        /* ── Go (used heavily in K8s/cloud tooling) — Gopher blue tones ── */
+        .lang-go .hljs-keyword          { color: #00838f !important; font-weight: 600; }
+        .lang-go .hljs-string           { color: #006064 !important; }
+        .lang-go .hljs-number           { color: #0097a7 !important; }
+        .lang-go .hljs-comment          { color: #4dd0e1 !important; font-style: italic; }
+        .lang-go .hljs-built_in         { color: #00acc1 !important; }
+        .lang-go .hljs-title            { color: #004d40 !important; font-weight: 700; }
+        .lang-go .hljs-type             { color: #00796b !important; }
+
+        /* ── Rust (used in cloud CLIs) — Rust orange tones ── */
+        .lang-rust .hljs-keyword        { color: #bf360c !important; font-weight: 600; }
+        .lang-rust .hljs-string         { color: #8d6e63 !important; }
+        .lang-rust .hljs-number         { color: #d84315 !important; }
+        .lang-rust .hljs-comment        { color: #ffb74d !important; font-style: italic; }
+        .lang-rust .hljs-built_in       { color: #e64a19 !important; }
+        .lang-rust .hljs-title          { color: #4e342e !important; font-weight: 700; }
+        .lang-rust .hljs-type           { color: #6d4c41 !important; }
+
+        /* ── Vim / Lua (used in Neovim/DevOps tooling) — Muted green ── */
+        .lang-lua .hljs-keyword         { color: #2e7d32 !important; font-weight: 600; }
+        .lang-lua .hljs-string          { color: #1b5e20 !important; }
+        .lang-lua .hljs-number          { color: #388e3c !important; }
+        .lang-lua .hljs-comment         { color: #a5d6a7 !important; font-style: italic; }
+        .lang-lua .hljs-built_in        { color: #43a047 !important; }
+
+        .markdown-body code {
+            font-family: var(--font-mono);
+            background-color: var(--inline-code-bg);
+            color: var(--inline-code-text);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 0.9em;
+        }
+
+        .markdown-body blockquote {
+            border-left: 3px solid var(--accent);
+            background-color: var(--blockquote-bg);
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            color: var(--text-secondary);
+            font-style: italic;
+            margin: 16px 0;
+        }
+
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+
+        .markdown-body th, .markdown-body td {
+            border: 1px solid var(--border);
+            padding: 8px 12px;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background-color: var(--code-bg);
+            font-weight: 600;
+        }
+
+        .markdown-body tr:hover td {
+            background-color: var(--blockquote-bg);
+        }
+
+        .markdown-body hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 24px 0;
+        }
+
+        .markdown-body a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        /* Fullscreen Mode */
+        .fullscreen-btn {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            z-index: 10;
+        }
+        .fullscreen-btn:hover {
+            background: var(--border);
+            color: var(--text-primary);
+        }
+        .fullscreen-btn svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        body.fullscreen-mode header {
+            display: none;
+        }
+        body.fullscreen-mode .container {
+            max-width: 100%;
+            padding: 0;
+            height: 100vh;
+            grid-template-columns: 1fr;
+        }
+        body.fullscreen-mode .input-panel {
+            display: none;
+        }
+        body.fullscreen-mode .preview-container {
+            border-radius: 0;
+            border: none;
+            height: 100vh;
+            padding: 40px calc(50vw - 400px);
+        }
+        @media (max-width: 900px) {
+            body.fullscreen-mode .preview-container {
+                padding: 40px 24px;
+            }
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            html, body { background: white; height: auto !important; overflow: visible !important; }
+            .input-panel, #toolbar, button, textarea, header { display: none !important; }
+            
+            .container, .main-content {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .preview-container {
+                width: 100% !important;
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+
+            #preview-card {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                height: auto !important;
+                display: block !important;
+            }
+
+            #preview-content {
+                overflow: visible !important;
+                height: auto !important;
+                display: block !important;
+            }
+
+            pre, blockquote, table, img {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            h1, h2, h3, h4 {
+                page-break-after: avoid !important;
+                break-after: avoid !important;
+            }
+            p, li {
+                orphans: 3;
+                widows: 3;
+            }
+        }
+
+        /* Prevent code blocks from being sliced across pages */
+        pre {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+
+        #print-btn {
+            border: 1px solid #6b6560;
+            color: #6b6560;
+            background: transparent;
+            border-radius: 8px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        #print-btn:hover {
+            background: #6b6560;
+            color: white;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            transform: translateY(20px);
+            transition: transform 0.2s ease;
+        }
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        .modal-content h3 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            font-size: 20px;
+        }
+        .modal-content p {
+            margin-bottom: 24px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+            </svg>
+            Claude Preview
+        </div>
+        <a href="#" class="header-link">Home</a>
+    </header>
+
+    <div class="container">
+        <div class="input-panel">
+            <div class="input-label">Paste Markdown</div>
+            <div class="textarea-wrapper">
+                <textarea id="markdown-input" placeholder="Enter your markdown here..."></textarea>
+            </div>
+            <div class="input-footer">
+                <div class="stats" id="stats">0 words • 0 min read</div>
+                <div class="actions">
+                    <button class="btn btn-primary" id="preview-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                        Preview
+                    </button>
+                    <button class="btn btn-secondary" id="download-md-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" x2="12" y1="15" y2="3"/>
+                        </svg>
+                        Download MD
+                    </button>
+                    <button class="btn btn-secondary" id="download-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 6 2 18 2 18 9"/>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
+                            <rect x="6" y="14" width="12" height="8"/>
+                        </svg>
+                        Print / Save PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-container" id="preview-card">
+            <button class="fullscreen-btn" id="fullscreen-btn" title="Toggle Fullscreen">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+            </button>
+            <div class="empty-state" id="empty-state">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                    <polyline points="14 2 14 8 20 8"/>
+                    <line x1="16" y1="13" x2="8" y2="13"/>
+                    <line x1="16" y1="17" x2="8" y2="17"/>
+                    <polyline points="10 9 9 9 8 9"/>
+                </svg>
+                Paste your Markdown above to preview it here
+            </div>
+            <div class="markdown-body" id="preview-content"></div>
+        </div>
+    </div>
+
+    <!-- Print Modal -->
+    <div class="modal-overlay" id="print-modal">
+        <div class="modal-content">
+            <h3>Open in New Tab to Print</h3>
+            <p>Because this app is running inside a preview window, your browser blocks the print dialog.</p>
+            <p>To print or save as a PDF, please click the <strong>"Open in new tab"</strong> button at the top right of this screen, then try printing again.</p>
+            <div class="modal-actions">
+                <button class="btn btn-primary" id="close-modal-btn">Got it</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Overlay -->
+    <div id="pdf-overlay" style="display:none; position:fixed; inset:0; background:rgba(247,245,242,0.85); z-index:9999; align-items:center; justify-content:center; flex-direction:column; gap:12px;">
+        <div style="width:40px;height:40px;border:3px solid #e8e3dd; border-top-color:#d97757; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+        <p style="color:#6b6560; font-size:14px;" id="pdf-status">Preparing document...</p>
+    </div>
+    <style>
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+
+    <script>
+        // Configure marked.js
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true,
+            gfm: true
+        });
+
+        const LANG_ALIASES = {
+            // Shell
+            'sh': 'bash', 'shell': 'bash', 'zsh': 'bash',
+            // Python
+            'py': 'python',
+            // Kubernetes
+            'k8s': 'kubernetes', 'kube': 'kubernetes',
+            // Docker
+            'docker': 'dockerfile',
+            // Terraform
+            'tf': 'terraform',
+            // HCL
+            'hcl': 'terraform',
+            // Helm
+            'helmfile': 'helm',
+            // AWS
+            'cfn': 'cloudformation', 'cf': 'cloudformation',
+            // Azure
+            'az': 'azure', 'azcli': 'azure',
+            // GitHub Actions
+            'gha': 'actions', 'githubactions': 'actions',
+            // Jenkins
+            'jenkinsfile': 'jenkins', 'pipeline': 'groovy',
+            // JavaScript
+            'js': 'javascript', 'ts': 'typescript', 'jsx': 'javascript', 'tsx': 'typescript',
+            // Go
+            'golang': 'go',
+            // PromQL
+            'prometheus': 'promql',
+            // Makefile
+            'make': 'makefile',
+        };
+
+        // After marked renders HTML, post-process code blocks to add language labels
+        function addLanguageLabels(html) {
+            const div = document.createElement('div');
+            div.innerHTML = html;
+
+            div.querySelectorAll('pre code').forEach(block => {
+                let lang = [...block.classList]
+                    .find(c => c.startsWith('language-'))
+                    ?.replace('language-', '') || '';
+
+                // Normalize alias to canonical name
+                const canonical = LANG_ALIASES[lang.toLowerCase()] || lang.toLowerCase();
+
+                if (canonical) {
+                    block.classList.add('lang-' + canonical);
+                    block.parentElement.classList.add('lang-' + canonical);
+
+                    const label = document.createElement('span');
+                    label.className = 'code-lang-label';
+                    label.textContent = lang; // show original label text
+                    block.parentElement.style.position = 'relative';
+                    block.parentElement.insertBefore(label, block);
+                }
+                
+                // Add copy button
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.setAttribute('aria-label', 'Copy code');
+                copyBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                    <span>Copy</span>
+                `;
+                block.parentElement.insertBefore(copyBtn, block);
+                
+                hljs.highlightElement(block);
+            });
+
+            return div.innerHTML;
+        }
+
+        // Event delegation for copy buttons
+        document.addEventListener('click', async (e) => {
+            const copyBtn = e.target.closest('.copy-btn');
+            if (!copyBtn) return;
+            
+            const wrapper = copyBtn.closest('pre');
+            const codeElement = wrapper.querySelector('code');
+            if (!codeElement) return;
+            
+            try {
+                await navigator.clipboard.writeText(codeElement.textContent);
+                const span = copyBtn.querySelector('span');
+                const originalText = span.textContent;
+                span.textContent = 'Copied!';
+                copyBtn.classList.add('copied');
+                
+                // Change icon to checkmark
+                const svg = copyBtn.querySelector('svg');
+                const originalSvg = svg.innerHTML;
+                svg.innerHTML = '<polyline points="20 6 9 17 4 12"></polyline>';
+                
+                setTimeout(() => {
+                    span.textContent = originalText;
+                    copyBtn.classList.remove('copied');
+                    svg.innerHTML = originalSvg;
+                }, 2000);
+            } catch (err) {
+                console.error('Failed to copy', err);
+            }
+        });
+
+        const input = document.getElementById('markdown-input');
+        const previewContent = document.getElementById('preview-content');
+        const emptyState = document.getElementById('empty-state');
+        const stats = document.getElementById('stats');
+        const previewBtn = document.getElementById('preview-btn');
+        const downloadMdBtn = document.getElementById('download-md-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const previewCard = document.getElementById('preview-card');
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+
+        let debounceTimer;
+
+        fullscreenBtn.addEventListener('click', () => {
+            document.body.classList.toggle('fullscreen-mode');
+            
+            // Update icon based on state
+            if (document.body.classList.contains('fullscreen-mode')) {
+                fullscreenBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
+                    </svg>
+                `;
+                fullscreenBtn.title = "Exit Fullscreen";
+            } else {
+                fullscreenBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                `;
+                fullscreenBtn.title = "Toggle Fullscreen";
+            }
+        });
+
+        function updateStats(text) {
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            const readTime = Math.max(1, Math.ceil(words / 200));
+            stats.textContent = `${words} words • ${readTime} min read`;
+        }
+
+        function renderMarkdown() {
+            const text = input.value;
+            updateStats(text);
+
+            if (!text.trim()) {
+                previewContent.classList.remove('visible');
+                setTimeout(() => {
+                    previewContent.innerHTML = '';
+                    emptyState.style.display = 'flex';
+                }, 200);
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            previewContent.classList.remove('visible');
+            
+            setTimeout(() => {
+                const rawHtml = marked.parse(text);
+                previewContent.innerHTML = addLanguageLabels(rawHtml);
+                previewContent.classList.add('visible');
+            }, 50);
+        }
+
+        input.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                renderMarkdown();
+                try {
+                    localStorage.setItem('saved-markdown', input.value);
+                } catch(e) {}
+            }, 300);
+        });
+
+        previewBtn.addEventListener('click', () => {
+            renderMarkdown();
+            if (window.innerWidth <= 600) {
+                previewCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                previewCard.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+
+        downloadMdBtn.addEventListener('click', () => {
+            const text = input.value;
+            if (!text.trim()) return;
+            
+            let filename = 'document.md';
+            const h1 = document.querySelector('#preview-content h1');
+            if (h1) {
+                filename = h1.textContent.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.md';
+            }
+            
+            const blob = new Blob([text], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        const printModal = document.getElementById('print-modal');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+
+        closeModalBtn.addEventListener('click', () => {
+            printModal.classList.remove('active');
+        });
+
+        function showOverlay(msg) {
+            const o = document.getElementById('pdf-overlay');
+            document.getElementById('pdf-status').textContent = msg;
+            o.style.display = 'flex';
+        }
+        function hideOverlay() {
+            document.getElementById('pdf-overlay').style.display = 'none';
+        }
+
+        async function downloadPDF() {
+            const btn = document.getElementById('download-btn');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+
+            showOverlay('Preparing document...');
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            const element = document.getElementById('preview-container');
+            // Check if element exists, if not use preview-card
+            const targetElement = element || document.getElementById('preview-card');
+            
+            if (!targetElement) {
+                console.error('Preview container not found');
+                hideOverlay();
+                btn.textContent = 'Print / Save PDF';
+                btn.disabled = false;
+                return;
+            }
+
+            const contentHeight = targetElement.scrollHeight;
+
+            // Use chunked method for large content
+            if (contentHeight > 15000) {
+                await downloadLargePDF(targetElement);
+            } else {
+                await downloadNormalPDF(targetElement);
+            }
+
+            hideOverlay();
+            btn.textContent = 'Print / Save PDF';
+            btn.disabled = false;
+        }
+
+        async function downloadNormalPDF(element) {
+            showOverlay('Rendering content...');
+            const clone = createClone(element);
+            document.body.appendChild(clone);
+            await new Promise(resolve => setTimeout(resolve, 800));
+
+            const opt = buildPDFOptions(clone);
+
+            try {
+                showOverlay('Saving PDF...');
+                await html2pdf().set(opt).from(clone).save();
+            } catch (err) {
+                console.error('PDF error:', err);
+                alert('PDF generation failed. Try the Print button instead (Ctrl+P).');
+            } finally {
+                document.body.removeChild(clone);
+            }
+        }
+
+        async function downloadLargePDF(element) {
+            showOverlay('Rendering large content...');
+            // For large content: use jsPDF with html() method directly
+            const { jsPDF } = window.jspdf;
+            const clone = createClone(element);
+            document.body.appendChild(clone);
+
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            const pdf = new jsPDF({
+                unit: 'mm',
+                format: 'a4',
+                orientation: 'portrait'
+            });
+
+            showOverlay('Saving PDF...');
+            await new Promise((resolve, reject) => {
+                pdf.html(clone, {
+                    callback: (doc) => {
+                        doc.save(getFilename());
+                        resolve();
+                    },
+                    x: 10,
+                    y: 10,
+                    width: 190,
+                    windowWidth: 794,
+                    html2canvas: {
+                        scale: 1.5,
+                        useCORS: true,
+                        logging: false,
+                        scrollX: 0,
+                        scrollY: 0
+                    },
+                    autoPaging: 'text',
+                    margin: [10, 10, 10, 10]
+                });
+            });
+
+            document.body.removeChild(clone);
+        }
+
+        function createClone(element) {
+            const clone = element.cloneNode(true);
+            clone.id = 'pdf-clone';
+            clone.style.cssText = `
+                position: fixed;
+                top: 0; left: 0;
+                width: 794px;
+                max-width: 794px;
+                padding: 40px 48px;
+                background: #ffffff;
+                z-index: -9999;
+                opacity: 0;
+                pointer-events: none;
+                font-size: 14px;
+                line-height: 1.75;
+                box-sizing: border-box;
+            `;
+            return clone;
+        }
+
+        function buildPDFOptions(clone) {
+            return {
+                margin: [12, 10, 12, 10],
+                filename: getFilename(),
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: {
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    allowTaint: false,
+                    scrollX: 0,
+                    scrollY: 0,
+                    windowWidth: 794,
+                    windowHeight: clone.scrollHeight,
+                    height: clone.scrollHeight,
+                    width: 794,
+                    onclone: (clonedDoc) => {
+                        const el = clonedDoc.getElementById('pdf-clone');
+                        if (el) el.style.opacity = '1';
+                    }
+                },
+                jsPDF: {
+                    unit: 'mm',
+                    format: 'a4',
+                    orientation: 'portrait',
+                    compress: true
+                },
+                pagebreak: {
+                    mode: ['avoid-all', 'css', 'legacy'],
+                    avoid: ['pre', 'blockquote', 'table', 'h1', 'h2', 'h3', 'li']
+                }
+            };
+        }
+
+        function getFilename() {
+            const h1 = document.querySelector('#preview-card h1');
+            if (h1) return h1.textContent.trim().replace(/\s+/g, '_').toLowerCase() + '.pdf';
+            return 'document.pdf';
+        }
+
+        downloadBtn.addEventListener('click', () => {
+            const text = input.value;
+            if (!text.trim()) return;
+
+            // Check if we are running inside an iframe
+            if (window.self !== window.top) {
+                printModal.classList.add('active');
+                return;
+            }
+
+            downloadPDF();
+        });
+        
+        // Load saved markdown
+        try {
+            const saved = localStorage.getItem('saved-markdown');
+            if (saved !== null) {
+                input.value = saved;
+            }
+        } catch(e) {}
+
+        // Initial render if there's content
+        if (input.value.trim()) {
+            renderMarkdown();
+        }
+        
+        // Auto-print if flag is set
+        try {
+            if (localStorage.getItem('auto-print') === 'true') {
+                localStorage.removeItem('auto-print');
+                setTimeout(() => downloadBtn.click(), 500);
+            }
+        } catch(e) {}
+    </script>
+</body>
+</html>
