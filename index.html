@@ -906,13 +906,21 @@
                         </svg>
                         Download MD
                     </button>
-                    <button class="btn btn-secondary" id="download-btn">
+                    <button class="btn btn-secondary" id="print-btn">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polyline points="6 9 6 2 18 2 18 9"/>
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
                             <rect x="6" y="14" width="12" height="8"/>
                         </svg>
-                        Print / Save PDF
+                        Print PDF
+                    </button>
+                    <button class="btn btn-secondary" id="download-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download PDF
                     </button>
                 </div>
             </div>
@@ -943,11 +951,21 @@
         <div class="modal-content">
             <h3>Open in New Tab to Print</h3>
             <p>Because this app is running inside a preview window, your browser blocks the print dialog.</p>
-            <p>To print or save as a PDF, please click the <strong>"Open in new tab"</strong> button at the top right of this screen, then try printing again.</p>
+            <p>To print, please click the <strong>"Open in new tab"</strong> button at the top right of this screen, then try printing again.</p>
             <div class="modal-actions">
                 <button class="btn btn-primary" id="close-modal-btn">Got it</button>
             </div>
         </div>
+    </div>
+
+    <!-- Image Preview Modal -->
+    <div class="modal-overlay" id="image-preview-modal" style="background: rgba(0,0,0,0.85); cursor: zoom-out;">
+        <div class="modal-content" style="background: transparent; box-shadow: none; max-width: 90vw; max-height: 90vh; padding: 0; display: flex; justify-content: center; align-items: center; overflow: hidden; cursor: default;">
+            <img id="preview-modal-img" src="" alt="Preview" style="max-width: 100%; max-height: 90vh; object-fit: contain; border-radius: 4px; transition: transform 0.2s ease; cursor: zoom-in;" />
+        </div>
+        <button id="close-image-modal" style="position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.5); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
     </div>
 
     <!-- PDF Overlay -->
@@ -1083,6 +1101,7 @@
         const previewBtn = document.getElementById('preview-btn');
         const downloadMdBtn = document.getElementById('download-md-btn');
         const downloadBtn = document.getElementById('download-btn');
+        const printBtn = document.getElementById('print-btn');
         const previewCard = document.getElementById('preview-card');
         const fullscreenBtn = document.getElementById('fullscreen-btn');
 
@@ -1178,6 +1197,16 @@
                     img.style.borderRadius = '8px';
                     img.style.margin = '16px 0';
                     img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                    img.style.cursor = 'zoom-in';
+                    
+                    // Add click listener for preview modal
+                    img.addEventListener('click', () => {
+                        const modal = document.getElementById('image-preview-modal');
+                        const modalImg = document.getElementById('preview-modal-img');
+                        modalImg.src = img.src;
+                        modalImg.style.transform = 'scale(1)'; // Reset zoom
+                        modal.classList.add('active');
+                    });
                     
                     // Try loading with two proxy fallbacks on error
                     img.addEventListener('error', function loadWithProxy() {
@@ -1248,6 +1277,55 @@
             printModal.classList.remove('active');
         });
 
+        // Image Preview Modal Logic
+        const imageModal = document.getElementById('image-preview-modal');
+        const closeImageModalBtn = document.getElementById('close-image-modal');
+        const previewModalImg = document.getElementById('preview-modal-img');
+        let currentZoom = 1;
+
+        function closeImageModal() {
+            imageModal.classList.remove('active');
+            setTimeout(() => {
+                currentZoom = 1;
+                previewModalImg.style.transform = `scale(${currentZoom})`;
+            }, 200);
+        }
+
+        closeImageModalBtn.addEventListener('click', closeImageModal);
+        
+        imageModal.addEventListener('click', (e) => {
+            if (e.target === imageModal || e.target.closest('.modal-content')) {
+                closeImageModal();
+            }
+        });
+
+        previewModalImg.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent modal close
+            if (currentZoom === 1) {
+                currentZoom = 2;
+                previewModalImg.style.cursor = 'zoom-out';
+            } else {
+                currentZoom = 1;
+                previewModalImg.style.cursor = 'zoom-in';
+            }
+            previewModalImg.style.transform = `scale(${currentZoom})`;
+        });
+
+        // Add wheel zoom support
+        previewModalImg.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomStep = 0.1;
+            if (e.deltaY < 0) {
+                // Zoom in
+                currentZoom = Math.min(currentZoom + zoomStep, 5);
+            } else {
+                // Zoom out
+                currentZoom = Math.max(currentZoom - zoomStep, 0.5);
+            }
+            previewModalImg.style.transform = `scale(${currentZoom})`;
+            previewModalImg.style.cursor = currentZoom > 1 ? 'zoom-out' : 'zoom-in';
+        });
+
         function showOverlay(msg) {
             const o = document.getElementById('pdf-overlay');
             document.getElementById('pdf-status').textContent = msg;
@@ -1272,7 +1350,14 @@
             if (!targetElement) {
                 console.error('Preview container not found');
                 hideOverlay();
-                btn.textContent = 'Print / Save PDF';
+                btn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Download PDF
+                `;
                 btn.disabled = false;
                 return;
             }
@@ -1287,7 +1372,14 @@
             }
 
             hideOverlay();
-            btn.textContent = 'Print / Save PDF';
+            btn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download PDF
+            `;
             btn.disabled = false;
         }
 
@@ -1415,13 +1507,20 @@
             const text = input.value;
             if (!text.trim()) return;
 
+            downloadPDF();
+        });
+
+        printBtn.addEventListener('click', () => {
+            const text = input.value;
+            if (!text.trim()) return;
+
             // Check if we are running inside an iframe
             if (window.self !== window.top) {
                 printModal.classList.add('active');
                 return;
             }
 
-            downloadPDF();
+            window.print();
         });
         
         // Load saved markdown
