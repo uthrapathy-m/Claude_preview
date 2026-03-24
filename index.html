@@ -811,6 +811,23 @@
             break-inside: avoid !important;
         }
 
+        /* Force code blocks to wrap text in PDF clone and print */
+        @media print {
+            pre, pre code {
+                white-space: pre-wrap !important;
+                word-wrap: break-word !important;
+                overflow-wrap: anywhere !important;
+                overflow-x: hidden !important;
+            }
+        }
+        #pdf-clone pre,
+        #pdf-clone pre code {
+            white-space: pre-wrap !important;
+            word-wrap: break-word !important;
+            overflow-wrap: anywhere !important;
+            overflow-x: hidden !important;
+        }
+
         #print-btn {
             border: 1px solid #6b6560;
             color: #6b6560;
