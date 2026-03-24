@@ -249,6 +249,20 @@
             opacity: 1;
         }
 
+        /* Image Preview Styles */
+        .image-preview {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        #image-link-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(217, 119, 87, 0.15);
+        }
+
         .markdown-body h1 {
             font-size: 28px;
             font-weight: 700;
@@ -1101,9 +1115,41 @@
             stats.textContent = `${words} words • ${readTime} min read`;
         }
 
+        function normalizeGithubImageUrl(url) {
+            try {
+                const parsed = new URL(url);
+                if ((parsed.hostname === 'github.com' || parsed.hostname === 'www.github.com') && parsed.pathname.includes('/blob/')) {
+                    // Convert from GitHub blob URL to raw URL
+                    // e.g. https://github.com/user/repo/blob/main/path/to/image.png
+                    // => https://raw.githubusercontent.com/user/repo/main/path/to/image.png
+                    const parts = parsed.pathname.split('/');
+                    const blobIndex = parts.indexOf('blob');
+                    if (blobIndex > 0 && parts.length > blobIndex + 2) {
+                        const user = parts[1];
+                        const repo = parts[2];
+                        const branch = parts[blobIndex + 1];
+                        const rest = parts.slice(blobIndex + 2).join('/');
+                        return `https://raw.githubusercontent.com/${user}/${repo}/${branch}/${rest}`;
+                    }
+                }
+                if (parsed.hostname === 'raw.githubusercontent.com') {
+                    return url;
+                }
+                return url;
+            } catch (e) {
+                return url;
+            }
+        }
+
         function renderMarkdown() {
             const text = input.value;
             updateStats(text);
+
+            const normalizedText = text.replace(/!\[([^\]]*)\]\(([^\)]+)\)/g, (full, alt, src) => {
+                const trimmedSrc = src.trim();
+                const normalized = normalizeGithubImageUrl(trimmedSrc);
+                return `![${alt}](${normalized})`;
+            });
 
             if (!text.trim()) {
                 previewContent.classList.remove('visible');
@@ -1118,8 +1164,39 @@
             previewContent.classList.remove('visible');
             
             setTimeout(() => {
-                const rawHtml = marked.parse(text);
+                const rawHtml = marked.parse(normalizedText);
                 previewContent.innerHTML = addLanguageLabels(rawHtml);
+                
+                // Style all images and add CORS proxy
+                const images = previewContent.querySelectorAll('img');
+                images.forEach(img => {
+                    const originalSrc = img.src;
+                    
+                    // Apply styling
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    img.style.borderRadius = '8px';
+                    img.style.margin = '16px 0';
+                    img.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                    
+                    // Try loading with two proxy fallbacks on error
+                    img.addEventListener('error', function loadWithProxy() {
+                        if (!this.dataset.fallbackStage) {
+                            this.dataset.fallbackStage = '1';
+                            this.src = 'https://images.weserv.nl/?url=' + encodeURIComponent(originalSrc);
+                        } else if (this.dataset.fallbackStage === '1') {
+                            this.dataset.fallbackStage = '2';
+                            this.src = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(originalSrc);
+                        } else {
+                            this.dataset.fallbackStage = 'done';
+                            this.style.border = '1px dashed #f56565';
+                            this.style.padding = '8px';
+                            this.style.background = '#fff5f5';
+                            this.alt = 'Unable to load image';
+                        }
+                    });
+                });
+                
                 previewContent.classList.add('visible');
             }, 50);
         }
