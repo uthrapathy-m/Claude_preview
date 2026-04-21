@@ -88,6 +88,7 @@
             grid-template-columns: 1fr 1fr;
             gap: 32px;
             height: calc(100vh - 52px);
+            align-items: start;
         }
 
         @media (max-width: 600px) {
@@ -154,24 +155,37 @@
         .stats {
             color: #9b8f87;
             font-size: 13px;
+            flex: 1;
         }
 
         .actions {
             display: flex;
-            gap: 12px;
+            gap: 8px;
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            z-index: 99;
+            background: var(--surface);
+            padding: 12px 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            flex-direction: column;
         }
 
         .btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.2s ease;
             font-family: var(--font-sans);
+            border: none;
+            white-space: nowrap;
         }
 
         .btn svg {
@@ -210,7 +224,7 @@
             background-color: var(--surface);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 40px 48px;
+            padding: 32px 48px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.06);
             height: 100%;
             overflow-y: auto;
@@ -307,51 +321,19 @@
             color: #3d3530;
         }
 
-        .markdown-body ul, .markdown-body ol {
+        .markdown-body ul,
+        .markdown-body ol {
             padding-left: 24px;
             margin: 12px 0;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
+            line-height: 1.75;
         }
 
         .markdown-body ul {
-            list-style: none;
-        }
-
-        .markdown-body ul li {
-            position: relative;
-        }
-
-        .markdown-body ul li::before {
-            content: '';
-            position: absolute;
-            left: -16px;
-            top: 13px;
-            width: 3px;
-            height: 3px;
-            border-radius: 1px;
-            background-color: var(--accent);
+            list-style: disc outside;
         }
 
         .markdown-body ol {
-            list-style-type: none;
-            counter-reset: item;
-        }
-
-        .markdown-body ol li {
-            position: relative;
-        }
-
-        .markdown-body ol li::before {
-            content: counter(item) ".";
-            counter-increment: item;
-            position: absolute;
-            left: -24px;
-            width: 16px;
-            text-align: right;
-            color: var(--accent);
-            font-weight: 500;
+            list-style: decimal outside;
         }
 
         .markdown-body pre {
@@ -701,9 +683,9 @@
 
         /* Fullscreen Mode */
         .fullscreen-btn {
-            position: absolute;
-            top: 16px;
-            right: 16px;
+            position: fixed;
+            top: 70px;
+            right: 24px;
             background: var(--surface);
             border: 1px solid var(--border);
             color: var(--text-secondary);
@@ -715,7 +697,8 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s ease;
-            z-index: 10;
+            z-index: 100;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         .fullscreen-btn:hover {
             background: var(--border);
@@ -728,6 +711,19 @@
 
         body.fullscreen-mode header {
             display: none;
+        }
+        body.fullscreen-mode .input-footer {
+            display: none;
+        }
+        body.fullscreen-mode .fullscreen-btn {
+            display: flex !important;
+        }
+        body.fullscreen-mode .actions {
+            display: flex !important;
+            position: fixed !important;
+            bottom: 24px !important;
+            left: 24px !important;
+            z-index: 999 !important;
         }
         body.fullscreen-mode .container {
             max-width: 100%;
@@ -750,7 +746,53 @@
             }
         }
 
+        .print-footer {
+            display: none;
+        }
+
+        .print-only {
+            display: none;
+        }
+
         @media print {
+            @page {
+                margin: 0;
+            }
+            .print-only {
+                display: table-row-group;
+            }
+            thead.print-only {
+                display: table-header-group;
+            }
+            tfoot.print-only {
+                display: table-footer-group;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+            #custom-print-footer {
+                width: 100% !important;
+                box-sizing: border-box !important;
+                padding-right: 15mm !important;
+            }
+            #preview-card {
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+                height: auto !important;
+                display: block !important;
+            }
+            #print-wrapper tbody td {
+                padding-left: 15mm !important;
+                padding-right: 15mm !important;
+            }
+            .print-footer {
+                display: none !important;
+            }
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
@@ -775,23 +817,13 @@
                 display: block !important;
             }
 
-            #preview-card {
-                box-shadow: none !important;
-                border: none !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                overflow: visible !important;
-                height: auto !important;
-                display: block !important;
-            }
-
             #preview-content {
                 overflow: visible !important;
                 height: auto !important;
                 display: block !important;
             }
 
-            pre, blockquote, table, img {
+            pre, blockquote, .markdown-body table, img {
                 page-break-inside: avoid !important;
                 break-inside: avoid !important;
             }
@@ -945,11 +977,6 @@
         </div>
 
         <div class="preview-container" id="preview-card">
-            <button class="fullscreen-btn" id="fullscreen-btn" title="Toggle Fullscreen">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-                </svg>
-            </button>
             <div class="empty-state" id="empty-state">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -960,9 +987,34 @@
                 </svg>
                 Paste your Markdown above to preview it here
             </div>
-            <div class="markdown-body" id="preview-content"></div>
+            <table id="print-wrapper" style="width: 100%; border: none; border-collapse: collapse; margin: 0; padding: 0;">
+                <thead class="print-only">
+                    <tr><td style="height: 15mm; border: none; padding: 0;"></td></tr>
+                </thead>
+                <tbody id="print-tbody">
+                    <tr>
+                        <td style="border: none; padding: 0;">
+                            <div class="markdown-body" id="preview-content"></div>
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot class="print-only">
+                    <tr>
+                        <td style="height: 15mm; border: none; padding: 0; vertical-align: bottom;">
+                            <div id="custom-print-footer" style="font-size: 11px; color: #666; padding-left: 15mm; padding-bottom: 5mm;"></div>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
         </div>
     </div>
+
+    <!-- Fullscreen Button (Fixed) -->
+    <button class="fullscreen-btn" id="fullscreen-btn" title="Toggle Fullscreen">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+        </svg>
+    </button>
 
     <!-- Print Modal -->
     <div class="modal-overlay" id="print-modal">
@@ -1125,7 +1177,7 @@
 
         let debounceTimer;
 
-        fullscreenBtn.addEventListener('click', () => {
+        function toggleFullscreen() {
             document.body.classList.toggle('fullscreen-mode');
             
             // Update icon based on state
@@ -1135,14 +1187,29 @@
                         <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/>
                     </svg>
                 `;
-                fullscreenBtn.title = "Exit Fullscreen";
+                fullscreenBtn.title = "Exit Fullscreen (Esc)";
             } else {
                 fullscreenBtn.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
                     </svg>
                 `;
-                fullscreenBtn.title = "Toggle Fullscreen";
+                fullscreenBtn.title = "Toggle Fullscreen (Ctrl+Shift+F)";
+            }
+        }
+
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+        // Keyboard shortcuts for fullscreen
+        document.addEventListener('keydown', (e) => {
+            // Exit fullscreen on Esc
+            if (e.key === 'Escape' && document.body.classList.contains('fullscreen-mode')) {
+                toggleFullscreen();
+            }
+            // Toggle fullscreen on Ctrl+Shift+F or Cmd+Shift+F
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                toggleFullscreen();
             }
         });
 
@@ -1204,6 +1271,11 @@
                 const rawHtml = marked.parse(normalizedText);
                 previewContent.innerHTML = addLanguageLabels(rawHtml);
                 
+                // Update document title
+                const h1 = previewContent.querySelector('h1');
+                const docTitle = h1 ? h1.textContent.trim() : 'Markdown Document';
+                document.title = docTitle;
+                
                 // Style all images and add CORS proxy
                 const images = previewContent.querySelectorAll('img');
                 images.forEach(img => {
@@ -1247,6 +1319,32 @@
                 previewContent.classList.add('visible');
             }, 50);
         }
+
+        // Synchronized scrolling between input and preview
+        let isScrollingSyncEnabled = true;
+        let lastScrollSource = null;
+
+        input.addEventListener('scroll', () => {
+            if (!isScrollingSyncEnabled || lastScrollSource === 'input') return;
+            lastScrollSource = 'input';
+            
+            const inputScrollPercent = input.scrollTop / (input.scrollHeight - input.clientHeight);
+            const previewMaxScroll = previewCard.scrollHeight - previewCard.clientHeight;
+            previewCard.scrollTop = inputScrollPercent * previewMaxScroll;
+            
+            setTimeout(() => { lastScrollSource = null; }, 100);
+        });
+
+        previewCard.addEventListener('scroll', () => {
+            if (!isScrollingSyncEnabled || lastScrollSource === 'preview') return;
+            lastScrollSource = 'preview';
+            
+            const previewScrollPercent = previewCard.scrollTop / (previewCard.scrollHeight - previewCard.clientHeight);
+            const inputMaxScroll = input.scrollHeight - input.clientHeight;
+            input.scrollTop = previewScrollPercent * inputMaxScroll;
+            
+            setTimeout(() => { lastScrollSource = null; }, 100);
+        });
 
         input.addEventListener('input', () => {
             clearTimeout(debounceTimer);
@@ -1411,7 +1509,22 @@
 
             try {
                 showOverlay('Saving PDF...');
-                await html2pdf().set(opt).from(clone).save();
+                await html2pdf().set(opt).from(clone).toPdf().get('pdf').then((pdf) => {
+                    const totalPages = pdf.internal.getNumberOfPages();
+                    const h1 = document.querySelector('#preview-content h1');
+                    const docTitle = h1 ? h1.textContent.trim() : '';
+                    for (let i = 1; i <= totalPages; i++) {
+                        pdf.setPage(i);
+                        pdf.setFontSize(9);
+                        pdf.setTextColor(128);
+                        const pageWidth = pdf.internal.pageSize.getWidth();
+                        const pageHeight = pdf.internal.pageSize.getHeight();
+                        if (docTitle) {
+                            pdf.text(docTitle, 12, pageHeight - 5);
+                        }
+                        pdf.text(`Page ${i} of ${totalPages}`, pageWidth - 12, pageHeight - 5, { align: 'right' });
+                    }
+                }).save();
             } catch (err) {
                 console.error('PDF error:', err);
                 alert('PDF generation failed. Try the Print button instead (Ctrl+P).');
@@ -1439,6 +1552,20 @@
             await new Promise((resolve, reject) => {
                 pdf.html(clone, {
                     callback: (doc) => {
+                        const totalPages = doc.internal.getNumberOfPages();
+                        const h1 = document.querySelector('#preview-content h1');
+                        const docTitle = h1 ? h1.textContent.trim() : '';
+                        for (let i = 1; i <= totalPages; i++) {
+                            doc.setPage(i);
+                            doc.setFontSize(9);
+                            doc.setTextColor(128);
+                            const pageWidth = doc.internal.pageSize.getWidth();
+                            const pageHeight = doc.internal.pageSize.getHeight();
+                            if (docTitle) {
+                                doc.text(docTitle, 10, pageHeight - 5);
+                            }
+                            doc.text(`Page ${i} of ${totalPages}`, pageWidth - 10, pageHeight - 5, { align: 'right' });
+                        }
                         doc.save(getFilename());
                         resolve();
                     },
@@ -1543,6 +1670,27 @@
             window.print();
         });
         
+        // Print formatting logic
+        let originalUrl = location.href;
+        let originalTitle = document.title;
+        
+        window.addEventListener('beforeprint', () => {
+            const h1 = document.querySelector('#preview-content h1');
+            const docTitle = h1 ? h1.textContent.trim() : 'Document';
+            
+            const printFooter = document.getElementById('custom-print-footer');
+            if (printFooter) {
+                printFooter.textContent = docTitle;
+            }
+            
+            originalTitle = document.title;
+            document.title = " "; // Clear top title
+        });
+
+        window.addEventListener('afterprint', () => {
+            document.title = originalTitle;
+        });
+
         // Load saved markdown
         try {
             const saved = localStorage.getItem('saved-markdown');
